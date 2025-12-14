@@ -8,15 +8,16 @@
   --color-text-secondary: #6b7280;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+.dark {
+  --color-background: #1f2937;
+  --color-surface: #111827;
+  --color-primary: #3b82f6;
+  --color-text: #f9fafb;
+  --color-text-secondary: #9ca3af;
 }
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--color-background);
   color: var(--color-text);
-  line-height: 1.6;
 }

@@ -74,6 +74,12 @@ export const fileService = {
     return response.data
   },
 
+  // Get storage info
+  async getStorageInfo() {
+    const response = await api.get('/storage')
+    return response.data
+  },
+
   // Get download URL
   getDownloadUrl(path) {
     return `${API_BASE}/download?path=${encodeURIComponent(path)}`
@@ -83,6 +89,8 @@ export const fileService = {
   getServeUrl(path) {
     return `${API_BASE}/serve?path=${encodeURIComponent(path)}`
   },
+
+  
 }
 
 export default fileService

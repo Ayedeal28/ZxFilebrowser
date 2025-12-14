@@ -1,7 +1,25 @@
-* text=auto
-*.js     text
-*.vue    text
-*.go     text
-*.html   text
-*.css    text
-*.json   text
+# Backend build files
+backend/dist/
+backend/zxfilebrowser.exe
+backend/*.exe
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Data folder (your uploaded files)
+data/*
+!data/.gitkeep
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
