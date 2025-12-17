@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
+	"filemanager/config"
 	"filemanager/utils"
 )
 
@@ -19,12 +21,13 @@ type FileInfo struct {
 }
 
 func ListDirectory(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		utils.SendJSON(w, http.StatusMethodNotAllowed, utils.Response{
-			Success: false,
-			Message: "Method not allowed",
-		})
-		return
+	sourceID := r.URL.Query().Get("source")
+	if sourceID == "" {
+		// Default to first enabled source
+		sources := config.GetEnabledSources()
+		if len(sources) > 0 {
+			sourceID = sources[0].ID
+		}
 	}
 
 	path := r.URL.Query().Get("path")
@@ -32,7 +35,7 @@ func ListDirectory(w http.ResponseWriter, r *http.Request) {
 		path = "/"
 	}
 
-	fullPath, err := utils.GetSafePath(path)
+	fullPath, err := utils.GetSafePath(sourceID, path)
 	if err != nil {
 		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
 			Success: false,
@@ -67,7 +70,7 @@ func ListDirectory(w http.ResponseWriter, r *http.Request) {
 			Ext:     filepath.Ext(entry.Name()),
 		})
 	}
-
+	log.Printf("Listing directory: %s (%d items)", path, len(files))
 	utils.SendJSON(w, http.StatusOK, utils.Response{
 		Success: true,
 		Data:    files,
@@ -83,8 +86,9 @@ func GetInfo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sourceID := r.URL.Query().Get("source")
 	path := r.URL.Query().Get("path")
-	fullPath, err := utils.GetSafePath(path)
+	fullPath, err := utils.GetSafePath(sourceID, path)
 	if err != nil {
 		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
 			Success: false,

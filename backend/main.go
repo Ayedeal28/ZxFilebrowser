@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
@@ -19,8 +20,12 @@ func main() {
 	config.Init()
 
 	// Create root directory if it doesn't exist
-	if err := os.MkdirAll(config.AppConfig.RootDir, 0755); err != nil {
-		log.Fatal("Failed to create root directory:", err)
+	for _, source := range config.AppConfig.Sources {
+		if source.Enabled && source.Type == "local" {
+			if err := os.MkdirAll(source.Path, 0755); err != nil {
+				log.Printf("Warning: Failed to create directory for %s: %v", source.Name, err)
+			}
+		}
 	}
 
 	// Setup API routes
@@ -64,7 +69,10 @@ func main() {
 		log.Println("⚠️  Running in development mode (frontend not embedded)")
 	}
 
-	log.Printf("🚀 Server starting on http://localhost%s", config.AppConfig.Port)
-	log.Printf("📁 Serving files from: %s", config.AppConfig.RootDir)
-	log.Fatal(http.ListenAndServe(config.AppConfig.Port, nil))
+	port := fmt.Sprintf(":%d", config.AppConfig.Server.Port)
+	log.Printf("🚀 Server starting on http://localhost%s", port)
+	for _, src := range config.GetEnabledSources() {
+		log.Printf("📁 Serving: %s from %s", src.Name, src.Path)
+	}
+	log.Fatal(http.ListenAndServe(port, nil))
 }

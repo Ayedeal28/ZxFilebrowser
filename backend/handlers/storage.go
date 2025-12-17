@@ -18,15 +18,28 @@ type StorageInfo struct {
 
 // GetStorageInfo returns disk usage information
 func GetStorageInfo(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		utils.SendJSON(w, http.StatusMethodNotAllowed, utils.Response{
-			Success: false,
-			Message: "Method not allowed",
-		})
+	sourceID := r.URL.Query().Get("source")
+	if sourceID == "" {
+		sources := config.GetEnabledSources()
+		if len(sources) > 0 {
+			sourceID = sources[0].ID
+		}
+	}
+
+	var source *config.Source
+	for _, s := range config.AppConfig.Sources {
+		if s.ID == sourceID {
+			source = &s
+			break
+		}
+	}
+
+	if source == nil {
+		utils.SendJSON(w, http.StatusBadRequest, utils.Response{Success: false, Message: "Source not found"})
 		return
 	}
 
-	info, err := getDiskUsage(config.AppConfig.RootDir)
+	info, err := getDiskUsage(source.Path)
 	if err != nil {
 		utils.SendJSON(w, http.StatusInternalServerError, utils.Response{
 			Success: false,

@@ -11,6 +11,7 @@ func SetupRoutes() {
 	// Directory operations
 	http.HandleFunc("/api/list", utils.CORSMiddleware(handlers.ListDirectory))
 	http.HandleFunc("/api/info", utils.CORSMiddleware(handlers.GetInfo))
+	http.HandleFunc("/api/sources", utils.CORSMiddleware(handlers.GetSources))
 
 	// File operations
 	http.HandleFunc("/api/create", utils.CORSMiddleware(handlers.CreateItem))
@@ -27,4 +28,8 @@ func SetupRoutes() {
 
 	// Storage info
 	http.HandleFunc("/api/storage", utils.CORSMiddleware(handlers.GetStorageInfo))
+
+	// Settings
+	http.HandleFunc("/api/settings", utils.CORSMiddleware(handlers.GetSettings))
+	http.HandleFunc("/api/settings/save", utils.CORSMiddleware(handlers.SaveSettings))
 }

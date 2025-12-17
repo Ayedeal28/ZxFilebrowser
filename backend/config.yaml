@@ -1,0 +1,9 @@
+server:
+  port: 8080
+
+sources:
+  - name: Test Files
+    path: C:\Users\ayede\Desktop\TestFile
+    
+  - name: Google Drive
+    path: X:\

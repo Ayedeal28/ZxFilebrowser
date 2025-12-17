@@ -3,6 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -16,11 +17,24 @@ type Response struct {
 	Data    interface{} `json:"data,omitempty"`
 }
 
-func GetSafePath(path string) (string, error) {
-	cleanPath := filepath.Clean(path)
-	fullPath := filepath.Join(config.AppConfig.RootDir, cleanPath)
+func GetSafePath(sourceID, path string) (string, error) {
+	// Find the source
+	var source *config.Source
+	for _, s := range config.AppConfig.Sources {
+		if s.ID == sourceID && s.Enabled {
+			source = &s
+			break
+		}
+	}
 
-	absRoot, err := filepath.Abs(config.AppConfig.RootDir)
+	if source == nil {
+		return "", fmt.Errorf("source not found or disabled: %s", sourceID)
+	}
+
+	cleanPath := filepath.Clean(path)
+	fullPath := filepath.Join(source.Path, cleanPath)
+
+	absRoot, err := filepath.Abs(source.Path)
 	if err != nil {
 		return "", err
 	}
@@ -31,7 +45,7 @@ func GetSafePath(path string) (string, error) {
 	}
 
 	if !strings.HasPrefix(absPath, absRoot) {
-		return "", fmt.Errorf("invalid path: outside root directory")
+		return "", fmt.Errorf("invalid path: outside source directory")
 	}
 
 	return absPath, nil
@@ -41,6 +55,13 @@ func SendJSON(w http.ResponseWriter, status int, response Response) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(response)
+
+	// Log response
+	statusText := "SUCCESS"
+	if status >= 400 {
+		statusText = "ERROR"
+	}
+	log.Printf("[%s] %d - %s", statusText, status, response.Message)
 }
 
 func CORSMiddleware(next http.HandlerFunc) http.HandlerFunc {

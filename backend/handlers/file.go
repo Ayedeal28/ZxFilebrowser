@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -21,8 +22,9 @@ func CreateItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Path  string `json:"path"`
-		IsDir bool   `json:"isDir"`
+		Source string `json:"source"`
+		Path   string `json:"path"`
+		IsDir  bool   `json:"isDir"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -33,7 +35,7 @@ func CreateItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fullPath, err := utils.GetSafePath(req.Path)
+	fullPath, err := utils.GetSafePath(req.Source, req.Path)
 	if err != nil {
 		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
 			Success: false,
@@ -43,8 +45,10 @@ func CreateItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.IsDir {
+		log.Printf("📁 Creating folder: %s", req.Path)
 		err = os.MkdirAll(fullPath, 0755)
 	} else {
+		log.Printf("📄 Creating file: %s", req.Path)
 		dir := filepath.Dir(fullPath)
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			utils.SendJSON(w, http.StatusInternalServerError, utils.Response{
@@ -81,7 +85,8 @@ func DeleteItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Path string `json:"path"`
+		Source string `json:"source"`
+		Path   string `json:"path"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -92,8 +97,9 @@ func DeleteItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fullPath, err := utils.GetSafePath(req.Path)
+	fullPath, err := utils.GetSafePath(req.Source, req.Path)
 	if err != nil {
+		log.Printf("🗑️  Deleting: %s", req.Path)
 		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
 			Success: false,
 			Message: err.Error(),
@@ -126,6 +132,7 @@ func RenameItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
+		Source  string `json:"source"`
 		Path    string `json:"path"`
 		NewName string `json:"newName"`
 	}
@@ -138,7 +145,7 @@ func RenameItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oldPath, err := utils.GetSafePath(req.Path)
+	oldPath, err := utils.GetSafePath(req.Source, req.Path)
 	if err != nil {
 		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
 			Success: false,
@@ -148,6 +155,7 @@ func RenameItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	newPath := filepath.Join(filepath.Dir(oldPath), req.NewName)
+	log.Printf("Renaming: %s -> %s", req.Path, req.NewName)
 
 	if err := os.Rename(oldPath, newPath); err != nil {
 		utils.SendJSON(w, http.StatusInternalServerError, utils.Response{
@@ -175,6 +183,7 @@ func CopyItem(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Source      string `json:"source"`
+		SourcePath  string `json:"sourcePath"`
 		Destination string `json:"destination"`
 	}
 
@@ -186,7 +195,7 @@ func CopyItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	srcPath, err := utils.GetSafePath(req.Source)
+	srcPath, err := utils.GetSafePath(req.Source, req.SourcePath)
 	if err != nil {
 		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
 			Success: false,
@@ -195,7 +204,7 @@ func CopyItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dstPath, err := utils.GetSafePath(req.Destination)
+	dstPath, err := utils.GetSafePath(req.Source, req.Destination)
 	if err != nil {
 		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
 			Success: false,
@@ -204,6 +213,7 @@ func CopyItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("Copying: %s -> %s", req.Source, req.Destination)
 	if err := copyPath(srcPath, dstPath); err != nil {
 		utils.SendJSON(w, http.StatusInternalServerError, utils.Response{
 			Success: false,
@@ -230,6 +240,7 @@ func MoveItem(w http.ResponseWriter, r *http.Request) {
 
 	var req struct {
 		Source      string `json:"source"`
+		SourcePath  string `json:"sourcePath"`
 		Destination string `json:"destination"`
 	}
 
@@ -241,7 +252,7 @@ func MoveItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	srcPath, err := utils.GetSafePath(req.Source)
+	srcPath, err := utils.GetSafePath(req.Source, req.SourcePath)
 	if err != nil {
 		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
 			Success: false,
@@ -250,7 +261,7 @@ func MoveItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dstPath, err := utils.GetSafePath(req.Destination)
+	dstPath, err := utils.GetSafePath(req.Destination, req.SourcePath)
 	if err != nil {
 		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
 			Success: false,
@@ -259,6 +270,7 @@ func MoveItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("Moving: %s -> %s", req.Source, req.Destination)
 	dstDir := filepath.Dir(dstPath)
 	if err := os.MkdirAll(dstDir, 0755); err != nil {
 		utils.SendJSON(w, http.StatusInternalServerError, utils.Response{
@@ -299,7 +311,7 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-
+	sourceID := r.URL.Query().Get("source")
 	path := r.URL.Query().Get("path")
 	if path == "" {
 		path = "/"
@@ -316,7 +328,7 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 	defer file.Close()
 
 	destPath := filepath.Join(path, header.Filename)
-	fullPath, err := utils.GetSafePath(destPath)
+	fullPath, err := utils.GetSafePath(sourceID, destPath)
 	if err != nil {
 		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
 			Success: false,
@@ -352,6 +364,7 @@ func UploadFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("Uploading: %s (%d bytes)", header.Filename, header.Size)
 	utils.SendJSON(w, http.StatusOK, utils.Response{
 		Success: true,
 		Message: "Uploaded successfully",
