@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"filemanager/utils"
 )
@@ -171,127 +173,150 @@ func RenameItem(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func uniquePath(dst string) (string, error) {
+	if _, err := os.Stat(dst); os.IsNotExist(err) {
+		return dst, nil
+	}
+
+	dir := filepath.Dir(dst)
+	ext := filepath.Ext(dst)
+	base := strings.TrimSuffix(filepath.Base(dst), ext)
+
+	for i := 1; ; i++ {
+		p := filepath.Join(dir, fmt.Sprintf("%s(%d)%s", base, i, ext))
+		if _, err := os.Stat(p); os.IsNotExist(err) {
+			return p, nil
+		}
+	}
+}
+
 // Copy file or folder
 func CopyItem(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		utils.SendJSON(w, http.StatusMethodNotAllowed, utils.Response{
-			Success: false,
-			Message: "Method not allowed",
-		})
+		utils.SendJSON(w, http.StatusMethodNotAllowed, utils.Response{Success: false, Message: "Method not allowed"})
 		return
 	}
 
 	var req struct {
-		Source      string `json:"source"`
+		SourceID    string `json:"sourceId"`
 		SourcePath  string `json:"sourcePath"`
+		DestID      string `json:"destId"`
 		Destination string `json:"destination"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
-			Success: false,
-			Message: "Invalid request",
-		})
+		utils.SendJSON(w, http.StatusBadRequest, utils.Response{Success: false, Message: "Invalid request"})
 		return
 	}
 
-	srcPath, err := utils.GetSafePath(req.Source, req.SourcePath)
+	req.SourcePath = strings.TrimLeft(req.SourcePath, `/\`)
+	req.Destination = strings.TrimLeft(req.Destination, `/\`)
+
+	srcPath, err := utils.GetSafePath(req.SourceID, req.SourcePath)
 	if err != nil {
-		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
-			Success: false,
-			Message: "Invalid source",
-		})
+		utils.SendJSON(w, http.StatusBadRequest, utils.Response{Success: false, Message: "Invalid source"})
 		return
 	}
 
-	dstPath, err := utils.GetSafePath(req.Source, req.Destination)
+	dstPath, err := utils.GetSafePath(req.DestID, req.Destination)
 	if err != nil {
-		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
-			Success: false,
-			Message: "Invalid destination",
-		})
+		utils.SendJSON(w, http.StatusBadRequest, utils.Response{Success: false, Message: "Invalid destination"})
 		return
 	}
 
-	log.Printf("Copying: %s -> %s", req.Source, req.Destination)
+	if _, err := os.Stat(srcPath); err != nil {
+		utils.SendJSON(w, http.StatusNotFound, utils.Response{Success: false, Message: "Source not found"})
+		return
+	}
+
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+		utils.SendJSON(w, http.StatusInternalServerError, utils.Response{Success: false, Message: "Failed to create destination"})
+		return
+	}
+
+	dstPath, err = uniquePath(dstPath)
+	if err != nil {
+		utils.SendJSON(w, http.StatusInternalServerError, utils.Response{Success: false, Message: "Failed to resolve destination"})
+		return
+	}
+
 	if err := copyPath(srcPath, dstPath); err != nil {
-		utils.SendJSON(w, http.StatusInternalServerError, utils.Response{
-			Success: false,
-			Message: "Failed to copy",
-		})
+		os.RemoveAll(dstPath)
+		utils.SendJSON(w, http.StatusInternalServerError, utils.Response{Success: false, Message: "Failed to copy"})
 		return
 	}
 
-	utils.SendJSON(w, http.StatusOK, utils.Response{
-		Success: true,
-		Message: "Copied successfully",
-	})
+	utils.SendJSON(w, http.StatusOK, utils.Response{Success: true, Message: "Copied successfully"})
 }
 
 // Move file or folder
 func MoveItem(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		utils.SendJSON(w, http.StatusMethodNotAllowed, utils.Response{
-			Success: false,
-			Message: "Method not allowed",
-		})
+		utils.SendJSON(w, http.StatusMethodNotAllowed, utils.Response{Success: false, Message: "Method not allowed"})
 		return
 	}
 
 	var req struct {
-		Source      string `json:"source"`
+		SourceID    string `json:"sourceId"`
 		SourcePath  string `json:"sourcePath"`
+		DestID      string `json:"destId"`
 		Destination string `json:"destination"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
-			Success: false,
-			Message: "Invalid request",
-		})
+		utils.SendJSON(w, http.StatusBadRequest, utils.Response{Success: false, Message: "Invalid request"})
 		return
 	}
 
-	srcPath, err := utils.GetSafePath(req.Source, req.SourcePath)
+	req.SourcePath = strings.TrimLeft(req.SourcePath, `/\`)
+	req.Destination = strings.TrimLeft(req.Destination, `/\`)
+
+	srcPath, err := utils.GetSafePath(req.SourceID, req.SourcePath)
 	if err != nil {
-		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
-			Success: false,
-			Message: "Invalid source",
-		})
+		utils.SendJSON(w, http.StatusBadRequest, utils.Response{Success: false, Message: "Invalid source"})
 		return
 	}
 
-	dstPath, err := utils.GetSafePath(req.Destination, req.SourcePath)
+	dstPath, err := utils.GetSafePath(req.DestID, req.Destination)
 	if err != nil {
-		utils.SendJSON(w, http.StatusBadRequest, utils.Response{
-			Success: false,
-			Message: "Invalid destination",
-		})
+		utils.SendJSON(w, http.StatusBadRequest, utils.Response{Success: false, Message: "Invalid destination"})
 		return
 	}
 
-	log.Printf("Moving: %s -> %s", req.Source, req.Destination)
-	dstDir := filepath.Dir(dstPath)
-	if err := os.MkdirAll(dstDir, 0755); err != nil {
-		utils.SendJSON(w, http.StatusInternalServerError, utils.Response{
-			Success: false,
-			Message: "Failed to create destination",
-		})
+	if _, err := os.Stat(srcPath); err != nil {
+		utils.SendJSON(w, http.StatusNotFound, utils.Response{Success: false, Message: "Source not found"})
 		return
 	}
 
-	if err := os.Rename(srcPath, dstPath); err != nil {
-		utils.SendJSON(w, http.StatusInternalServerError, utils.Response{
-			Success: false,
-			Message: "Failed to move",
-		})
+	if err := os.MkdirAll(filepath.Dir(dstPath), 0755); err != nil {
+		utils.SendJSON(w, http.StatusInternalServerError, utils.Response{Success: false, Message: "Failed to create destination"})
 		return
 	}
 
-	utils.SendJSON(w, http.StatusOK, utils.Response{
-		Success: true,
-		Message: "Moved successfully",
-	})
+	dstPath, err = uniquePath(dstPath)
+	if err != nil {
+		utils.SendJSON(w, http.StatusInternalServerError, utils.Response{Success: false, Message: "Failed to resolve destination"})
+		return
+	}
+
+	if req.SourceID == req.DestID {
+		if err := os.Rename(srcPath, dstPath); err != nil {
+			utils.SendJSON(w, http.StatusInternalServerError, utils.Response{Success: false, Message: "Failed to move"})
+			return
+		}
+	} else {
+		if err := copyPath(srcPath, dstPath); err != nil {
+			os.RemoveAll(dstPath)
+			utils.SendJSON(w, http.StatusInternalServerError, utils.Response{Success: false, Message: "Failed to Copy and Move"})
+			return
+		}
+		if err := os.RemoveAll(srcPath); err != nil {
+			utils.SendJSON(w, http.StatusInternalServerError, utils.Response{Success: false, Message: "Failed to delete source after Moving"})
+			return
+		}
+	}
+
+	utils.SendJSON(w, http.StatusOK, utils.Response{Success: true, Message: "Moved successfully"})
 }
 
 // Upload file

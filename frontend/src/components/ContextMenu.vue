@@ -21,6 +21,10 @@
       <Copy class="icon" />
       Copy
     </button>
+    <button @click="$emit('move', file)" class="context-item">
+      <FolderInput class="icon" />
+      Move
+    </button>
     <div class="context-divider"></div>
     <button @click="$emit('delete', file)" class="context-item danger">
       <Trash2 class="icon" />
@@ -30,7 +34,7 @@
 </template>
 
 <script setup>
-import { Download, Edit2, Copy, Trash2 } from 'lucide-vue-next'
+import { Download, Edit2, Copy, Trash2, FolderInput  } from 'lucide-vue-next'
 
 defineProps(['visible', 'x', 'y', 'file'])
 defineEmits(['download', 'rename', 'copy', 'delete'])

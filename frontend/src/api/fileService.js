@@ -38,14 +38,24 @@ export const fileService = {
   },
 
   // Copy file or folder
-  async copy(sourceID, source, destination) {
-    const response = await api.post('/copy', { source: sourceID, sourcePath: source, destination })
+  async copy(sourceId, sourcePath, destId, destination) {
+    const response = await api.post('/copy', { 
+      sourceId, 
+      sourcePath, 
+      destId, 
+      destination 
+    })
     return response.data
   },
 
   // Move file or folder
-  async move(sourceID, source, destination) {
-    const response = await api.post('/move', { source: sourceID, sourcePath: source, destination })
+  async move(sourceId, sourcePath, destId, destination) {
+    const response = await api.post('/move', { 
+      sourceId, 
+      sourcePath, 
+      destId, 
+      destination 
+    })
     return response.data
   },
 

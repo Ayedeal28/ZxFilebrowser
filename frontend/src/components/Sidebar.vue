@@ -86,4 +86,45 @@ const formatSize = (bytes) => {
 .storage-card.active {
   border: 2px solid var(--accent-color);
 }
+
+
+
+@media (max-width: 768px) {
+  /* Make sidebar overlay instead of pushing content */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 250px;
+    transform: translateX(-100%);
+    z-index: 200;
+    transition: transform 0.3s ease-in-out;
+  }
+  .sidebar.collapsed {
+    transform: translateX(-100%);
+  }
+  .sidebar:not(.collapsed) {
+    transform: translateX(0);
+  }
+
+  /* Sidebar toggle button above all content */
+  .close-btn {
+    display: inline-block;
+  }
+
+  /* Reduce padding/margins for mobile */
+  .sidebar { padding: 15px; gap: 16px; }
+  .sidebar-card { padding: 12px; }
+  .settings-card { gap: 6px; }
+  .storage-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap; /* single line with "..." if too long */
+  }
+
+  .storage-header {
+    flex-wrap: wrap; /* allows icon + text to wrap on small screens */
+  }
+}
 </style>

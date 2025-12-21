@@ -4,6 +4,6 @@ server:
 sources:
   - name: Test Files
     path: C:\Users\ayede\Desktop\TestFile
-    
-  - name: Google Drive
-    path: X:\
+
+  - name : One Drive - Personal
+    path : "C:\\Users\\ayede\\OneDrive"

@@ -21,14 +21,18 @@
     <main class="main-content" :class="{'sidebar-collapsed': !isSidebarOpen}">
       <FileHeader 
         :current-path="currentPath"
+        :current-view="currentView"
         @upload="showUploadModal = true"
         @create="showCreateModal = true"
         @navigate="navigateTo"
+        @change-view="changeView"
       />
 
       <FileList 
         :files="files"
         :loading="loading"
+        :view-mode="currentView"
+        :source-id="activeSource"
         @file-click="handleFileClick"
         @context-menu="showContextMenu"
       />
@@ -43,6 +47,7 @@
       @download="downloadFile"
       @rename="startRename"
       @copy="startCopy"
+      @move="startMove"
       @delete="deleteFile"
     />
 
@@ -97,6 +102,17 @@
         </div>
       </div>
     </div>
+
+    <CopyModal 
+      v-if="showCopyModal"
+      :file-name="copyingFile?.name"
+      :source-path="copyingFile?.path"
+      :source-id="activeSource"
+      :sources="sources"
+      :mode="copyMode"
+      @close="showCopyModal = false"
+      @confirm="confirmCopy"
+    />
   </div>
 </template>
 
@@ -108,8 +124,10 @@ import FileHeader from '@/components/FileHeader.vue'
 import FileList from '@/components/FileList.vue'
 import fileService from '../api/fileService'
 import ContextMenu from '@/components/ContextMenu.vue'
+import CopyModal from '@/components/CopyModal.vue'
 
 const currentPath = ref('/')
+const currentView = ref('list')
 const files = ref([])
 const loading = ref(false)
 const showUploadModal = ref(false)
@@ -121,6 +139,9 @@ const createType = ref('folder')
 const createName = ref('')
 const renameFile = ref(null)
 const renameName = ref('')
+const showCopyModal = ref(false)
+const copyingFile = ref(null)
+const copyMode = ref('copy')
 
 // Sidebar state
 const isSidebarPinned = ref(true)
@@ -134,11 +155,21 @@ const storageTotal = ref(0)
 const storageName = ref('Local Storage')
 const storagePath = ref('')
 const sources = ref([])
-const activeSource = ref('')
+// const activeSource = ref('')
+const activeSource = ref(localStorage.getItem('activeSource') || '')
 const storagePercent = computed(() => {
   if (storageTotal.value === 0) return 0
   return Math.round((storageUsed.value / storageTotal.value) * 100)
 })
+
+const changeView = (view) => {
+  currentView.value = view
+  localStorage.setItem('fileView', view)
+}
+
+//Copy Menu
+
+
 
 // Context menu
 const contextMenu = ref({
@@ -201,9 +232,18 @@ const loadSources = async () => {
         total: 0,
         percent: 0
       }))
-      if (sources.value.length > 0) {
+      
+      // Restore saved source or use first
+      const savedSource = localStorage.getItem('activeSource')
+      if (savedSource && sources.value.find(s => s.id === savedSource)) {
+        activeSource.value = savedSource
+      } else if (sources.value.length > 0) {
         activeSource.value = sources.value[0].id
-        loadStorageInfo(activeSource.value)
+        localStorage.setItem('activeSource', activeSource.value)
+      }
+      
+      for (const source of sources.value) {
+        loadStorageInfo(source.id)
       }
     }
   } catch (error) {
@@ -229,6 +269,7 @@ const loadStorageInfo = async (sourceID) => {
 
 const switchSource = (sourceID) => {
   activeSource.value = sourceID
+  localStorage.setItem('activeSource', sourceID) // Save to localStorage
   currentPath.value = '/'
   loadFiles()
   loadStorageInfo(sourceID)
@@ -344,27 +385,48 @@ const confirmRename = async () => {
   }
 }
 
-const startCopy = async (file) => {
+const startCopy = (file) => {
   hideContextMenu()
-  const newName = prompt('Enter new name:', file.name + '_copy')
-  if (!newName) return
+  copyingFile.value = file
+  copyMode.value = 'copy'
+  showCopyModal.value = true
+}
 
+const startMove = (file) => {
+  hideContextMenu()
+  copyingFile.value = file
+  copyMode.value = 'move'
+  showCopyModal.value = true
+}
+
+const confirmCopy = async (destination) => {
+  if (!copyingFile.value) return
+  
   try {
-    const destPath =
-      currentPath.value === '/'
-        ? '/' + newName
-        : currentPath.value + '/' + newName
-
-    await fileService.copy(
-      activeSource.value,
-      file.path,
-      destPath
-    )
-
+    if (copyMode.value === 'move') {
+      await fileService.move(
+        activeSource.value,
+        copyingFile.value.path,
+        destination.sourceId,
+        destination.path + '/' + copyingFile.value.name
+      )
+      alert('Moved successfully!')
+    } else {
+      await fileService.copy(
+        activeSource.value,
+        copyingFile.value.path,
+        destination.sourceId,
+        destination.path + '/' + copyingFile.value.name
+      )
+      alert('Copied successfully!')
+    }
+    
+    showCopyModal.value = false
+    copyingFile.value = null
     loadFiles()
   } catch (error) {
-    console.error('Copy failed:', error)
-    alert('Failed to copy')
+    console.error(`${copyMode.value} failed:`, error)
+    alert(`Failed to ${copyMode.value}`)
   }
 }
 
@@ -388,6 +450,11 @@ const downloadFile = (file) => {
 }
 
 onMounted(() => {
+    // Restore saved view
+  const savedView = localStorage.getItem('fileView')
+  if (savedView) {
+    currentView.value = savedView
+  }
   loadSettings()
   loadSources()
   loadFiles()
@@ -405,7 +472,7 @@ onUnmounted(() => {
 .file-browser { --bg-primary: #f9fafb; --bg-secondary: #ffffff; --bg-hover: #f3f4f6; --text-primary: #111827; --text-secondary: #6b7280; --border-color: #e5e7eb; --accent-color: #3b82f6; }
 .file-browser.dark-mode { --bg-primary: #111827; --bg-secondary: #1f2937; --bg-hover: #374151; --text-primary: #f9fafb; --text-secondary: #9ca3af; --border-color: #374151; --accent-color: #60a5fa; }
 .sidebar-toggle { position: fixed; left: 10px; top: 20px; z-index: 99; padding: 10px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; color: var(--text-primary); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
-.main-content { flex: 1; padding: 20px; margin-left: 280px; transition: margin-left 0.3s ease; min-height: 100vh; }
+.main-content { flex: 1; padding: 20px; margin-left: 280px; transition: margin-left 0.3s ease; min-height: 100vh;  }
 .main-content.sidebar-collapsed { margin-left: 0; padding-left: 70px; }
 .icon { width: 18px; height: 18px; }
 .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
@@ -424,4 +491,5 @@ onUnmounted(() => {
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .progress-bar { width: 100%; height: 8px; background: var(--border-color); border-radius: 4px; overflow: hidden; margin: 16px 0; }
 .progress-fill { height: 100%; background: var(--accent-color); transition: width 0.3s; }
+
 </style>

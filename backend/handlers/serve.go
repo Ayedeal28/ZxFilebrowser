@@ -126,6 +126,16 @@ func ServeFile(w http.ResponseWriter, r *http.Request) {
 
 	setContentDisposition(w, r, fileName)
 
+	// Determine MIME type
+	contentType := mime.TypeByExtension(strings.ToLower(filepath.Ext(fileName)))
+	if contentType == "" {
+		contentType = "text/plain" // fallback for unknown types
+	}
+	w.Header().Set("Content-Type", contentType)
+
+	// Serve inline instead of forcing download
+	w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", fileName))
+
 	// Prevent caching
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
 	w.Header().Set("Pragma", "no-cache")
@@ -133,7 +143,7 @@ func ServeFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Length", strconv.FormatInt(info.Size(), 10))
 
-	log.Printf("👁️ Serving: %s", fileName)
+	log.Printf("Serving: %s", fileName)
 
 	http.ServeContent(w, r, fileName, info.ModTime(), file)
 }
@@ -157,8 +167,8 @@ func setContentDisposition(w http.ResponseWriter, r *http.Request, fileName stri
 	}
 
 	// Default: let browser decide (inline if supported)
-	w.Header().Set("Content-Disposition",
-		fmt.Sprintf("inline; filename=\"%s\"", fileName))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("inline; filename=%q", fileName))
+
 }
 
 // Download file
