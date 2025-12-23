@@ -2,8 +2,17 @@ server:
   port: 8080
 
 sources:
-  - name: Test Files
-    path: C:\Users\ayede\Desktop\TestFile
+  - name : Images
+    path : "C:\\Users\\ayede\\Desktop\\Akad Nikah"
+  
+  - name : Test Dir
+    path : "C:\\Users\\ayede\\Desktop\\TestFile"
 
   - name : One Drive - Personal
     path : "C:\\Users\\ayede\\OneDrive"
+
+  - name : Google Drive
+    path : "X:\\"
+
+  - name : Box Drive
+    path : "Y:\\"

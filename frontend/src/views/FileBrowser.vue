@@ -113,6 +113,14 @@
       @close="showCopyModal = false"
       @confirm="confirmCopy"
     />
+
+    <FileViewer 
+      :visible="showFileViewer"
+      :file-url="viewingFile ? fileService.getServeUrl(activeSource, viewingFile.path) : ''"
+      :file-name="viewingFile?.name"
+      :download-url="viewingFile ? fileService.getDownloadUrl(activeSource, viewingFile.path) : ''"
+      @close="closeViewer"
+    />
   </div>
 </template>
 
@@ -125,6 +133,7 @@ import FileList from '@/components/FileList.vue'
 import fileService from '../api/fileService'
 import ContextMenu from '@/components/ContextMenu.vue'
 import CopyModal from '@/components/CopyModal.vue'
+import FileViewer from '@/components/FileViewer.vue'
 
 const currentPath = ref('/')
 const currentView = ref('list')
@@ -142,6 +151,9 @@ const renameName = ref('')
 const showCopyModal = ref(false)
 const copyingFile = ref(null)
 const copyMode = ref('copy')
+const showFileViewer = ref(false)
+const viewingFile = ref(null)
+
 
 // Sidebar state
 const isSidebarPinned = ref(true)
@@ -298,10 +310,15 @@ const handleFileClick = (file) => {
   if (file.isDir) {
     navigateTo(file.path)
   } else {
-    window.location.href = fileService.getServeUrl(activeSource.value, file.path)
+    viewingFile.value = file
+    showFileViewer.value = true
   }
 }
 
+const closeViewer = () => {
+  showFileViewer.value = false
+  viewingFile.value = null
+}
 
 // Context Menu Functions
 const showContextMenu = (event, file) => {

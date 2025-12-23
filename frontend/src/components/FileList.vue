@@ -30,7 +30,15 @@
     <div v-if="viewMode === 'grid'" class="file-grid">
       <div v-for="file in files" :key="file.path" class="file-item-grid" @click="$emit('file-click', file)" @contextmenu.prevent="$emit('context-menu', $event, file)">
         <div class="file-preview">
-          <img v-if="isImage(file)" :src="getThumbnailUrl(file)" alt="" class="thumbnail" @error="handleImageError">
+          <img 
+            v-if="isImage(file)" 
+            :src="getThumbnailUrl(file)" 
+            :key="file.path"
+            alt="" 
+            class="thumbnail" 
+            loading="lazy"
+            @error="handleImageError"
+          >
           <Folder v-else-if="file.isDir" class="preview-icon folder" />
           <FileIcon v-else class="preview-icon file" />
         </div>
@@ -43,7 +51,15 @@
     <div v-if="viewMode === 'tiles'" class="file-tiles">
       <div v-for="file in files" :key="file.path" class="file-item-tile" @click="$emit('file-click', file)" @contextmenu.prevent="$emit('context-menu', $event, file)">
         <div class="tile-preview">
-          <img v-if="isImage(file)" :src="getThumbnailUrl(file)" alt="" class="thumbnail" @error="handleImageError">
+          <img 
+            v-if="isImage(file)" 
+            :src="getThumbnailUrl(file)" 
+            :key="file.path"
+            alt="" 
+            class="thumbnail" 
+            loading="lazy"
+            @error="handleImageError"
+          >
           <Folder v-else-if="file.isDir" class="preview-icon folder" />
           <FileIcon v-else class="preview-icon file" />
           <div class="tile-overlay">
